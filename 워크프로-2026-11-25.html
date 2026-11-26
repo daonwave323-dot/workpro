@@ -1054,6 +1054,7 @@ html[data-theme="night"] .theme-btn .ic-nightic{display:block}
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16"/></svg>
             녹음 파일 저장
           </button>
+          <button id="rec-retry" class="btn ghost sm" type="button" hidden>다시 전사</button>
           <button id="rec-settings" class="btn ghost sm" type="button" hidden>키 넣기</button>
         </div>
         <div class="rec-prog" id="rec-prog" hidden><i></i></div>
@@ -1966,6 +1967,7 @@ function openCompose(){
     $('#rec-settings').hidden = false;
   }
   $('#rec-save').hidden = !(REC.blob && REC.blob.size);
+  var rb = $('#rec-retry'); if(rb) rb.hidden = true;
   $('#btn-menu').setAttribute('aria-expanded','false');
   $('#data-menu').hidden = true;
   openOverlay($('#compose'));
@@ -2703,6 +2705,7 @@ function startRec(){
     return;
   }
   var sb2 = $('#rec-settings'); if(sb2) sb2.hidden = true;
+  var rbStart = $('#rec-retry'); if(rbStart) rbStart.hidden = true;
   recBadge('busy','마이크 확인');
   recNote('마이크 권한을 확인하고 있습니다…');
   navigator.mediaDevices.getUserMedia({ audio:true }).then(function(stream){
@@ -2857,6 +2860,7 @@ function transcribeBlob(blob){
   recBadge('busy','업로드');
   recNote('녹음을 AssemblyAI로 올리는 중입니다…');
   recProgress(0);
+  var rb0 = $('#rec-retry'); if(rb0) rb0.hidden = true;
   uploadAudio(blob).then(function(url){
     if(REC.cancel) throw new Error('cancel');
     recBadge('busy','전사 중');
@@ -2878,6 +2882,7 @@ function transcribeBlob(blob){
     appendTranscript(text);
     recBadge('ok','완료');
     recNote('전사 결과를 위 ‘회의 내용’ 칸에 넣었습니다. 확인한 뒤 ‘정리하기’를 눌러 주세요.', 'ok');
+    var rb2 = $('#rec-retry'); if(rb2) rb2.hidden = true;
     toast('전사 완료 · 원본 칸에 넣었습니다');
   }).catch(function(err){
     if(err && err.message === 'cancel'){
@@ -2886,7 +2891,8 @@ function transcribeBlob(blob){
       return;
     }
     recBadge('warn','오류');
-    recNote((err && err.message) || '전사에 실패했습니다. 잠시 뒤 다시 시도해 주세요.', 'err');
+    recNote(((err && err.message) || '전사에 실패했습니다. 잠시 뒤 다시 시도해 주세요.') + ' 녹음 파일은 남아 있으니 ‘다시 전사’를 눌러 재시도할 수 있습니다.', 'err');
+    var rb = $('#rec-retry'); if(rb) rb.hidden = false;
   }).then(function(){
     REC.busy = false;
     recProgress(null);
@@ -3381,6 +3387,11 @@ function bind(){
     startRec();
   });
   $('#rec-save').addEventListener('click', saveRecording);
+  $('#rec-retry').addEventListener('click', function(){
+    if(REC.busy || !REC.blob) return;
+    if(!getAKey()){ recNote('먼저 설정에서 AssemblyAI 키를 저장해 주세요.', 'err'); return; }
+    transcribeBlob(REC.blob);
+  });
   $('#rec-settings').addEventListener('click', openSettings);
   $('#c-tpl').addEventListener('change', function(){
     var id = this.value;
